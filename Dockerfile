@@ -18,7 +18,7 @@ RUN go mod download
 COPY . .
 
 # 编译：关闭 CGO，生成静态二进制，-s -w 去除调试信息以缩减体积
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+RUN CGO_ENABLED=0 \
     go build -ldflags="-s -w" -trimpath \
     -o llm-proxy ./cmd/proxy
 
