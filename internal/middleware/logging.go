@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"net/netip"
 	"strings"
 	"time"
 
@@ -40,6 +41,25 @@ func (rw *responseWriter) Flush() {
 	if f, ok := rw.ResponseWriter.(http.Flusher); ok {
 		f.Flush()
 	}
+}
+
+// clientIP extracts the real client IP from the request.
+// Priority: X-Forwarded-For (first entry) > X-Real-IP > RemoteAddr.
+func clientIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		if idx := strings.IndexByte(xff, ','); idx != -1 {
+			return strings.TrimSpace(xff[:idx])
+		}
+		return strings.TrimSpace(xff)
+	}
+	if xri := r.Header.Get("X-Real-IP"); xri != "" {
+		return strings.TrimSpace(xri)
+	}
+	// RemoteAddr is "host:port" — strip the port.
+	if addr, err := netip.ParseAddrPort(r.RemoteAddr); err == nil {
+		return addr.Addr().String()
+	}
+	return r.RemoteAddr
 }
 
 // maskAPIKey returns the last 4 characters of the key, prefixed with "****".
@@ -93,6 +113,7 @@ func Logging(logger *zap.Logger) func(http.Handler) http.Handler {
 			logger.Info("request",
 				zap.String("provider", provider),
 				zap.String("path", r.URL.Path),
+				zap.String("client_ip", clientIP(r)),
 				zap.String("api_key", maskAPIKey(apiKey)),
 				zap.Int("status", rw.status),
 				zap.Int64("latency_ms", latencyMs),
