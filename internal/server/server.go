@@ -48,8 +48,8 @@ func New(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 		return nil, fmt.Errorf("failed to create openai proxy: %w", err)
 	}
 	mux.Handle("/openai/", loggingMiddleware(
-		rateLimiter.Handler("openai",
-			countingHandler("openai", stats, openaiProxy),
+		statsMiddleware("openai", stats,
+			rateLimiter.Handler("openai", openaiProxy),
 		),
 	))
 
@@ -59,8 +59,8 @@ func New(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 		return nil, fmt.Errorf("failed to create anthropic proxy: %w", err)
 	}
 	mux.Handle("/anthropic/", loggingMiddleware(
-		rateLimiter.Handler("anthropic",
-			countingHandler("anthropic", stats, anthropicProxy),
+		statsMiddleware("anthropic", stats,
+			rateLimiter.Handler("anthropic", anthropicProxy),
 		),
 	))
 
@@ -91,9 +91,33 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	return s.httpServer.Shutdown(shutdownCtx)
 }
 
-// countingHandler wraps next with a handler that increments request counters in
-// stats before delegating to next.
-func countingHandler(provider string, stats *dashboard.Stats, next http.Handler) http.Handler {
+// statsResponseWriter captures status code and response bytes for metrics.
+type statsResponseWriter struct {
+	http.ResponseWriter
+	status int
+	bytes  int
+}
+
+func (w *statsResponseWriter) WriteHeader(code int) {
+	w.status = code
+	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *statsResponseWriter) Write(b []byte) (int, error) {
+	n, err := w.ResponseWriter.Write(b)
+	w.bytes += n
+	return n, err
+}
+
+func (w *statsResponseWriter) Flush() {
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+// statsMiddleware records per-request metrics into stats.
+// Placed outside the rate limiter so every request (including 429s) is counted.
+func statsMiddleware(provider string, stats *dashboard.Stats, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		stats.Total.Add(1)
 		switch provider {
@@ -102,6 +126,24 @@ func countingHandler(provider string, stats *dashboard.Stats, next http.Handler)
 		case "anthropic":
 			stats.Anthropic.Add(1)
 		}
-		next.ServeHTTP(w, r)
+		if r.ContentLength > 0 {
+			stats.ReqBytes.Add(r.ContentLength)
+		}
+
+		start := time.Now()
+		srw := &statsResponseWriter{ResponseWriter: w, status: http.StatusOK}
+		next.ServeHTTP(srw, r)
+
+		stats.TotalLatencyMs.Add(time.Since(start).Milliseconds())
+		stats.RespBytes.Add(int64(srw.bytes))
+
+		switch srw.status {
+		case http.StatusTooManyRequests:
+			stats.RateLimited.Add(1)
+		default:
+			if srw.status >= 400 {
+				stats.Errors.Add(1)
+			}
+		}
 	})
 }

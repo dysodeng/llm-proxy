@@ -14,11 +14,23 @@ import (
 //go:embed web/index.html
 var indexHTML string
 
-// Stats tracks request counts atomically.
+// Stats tracks request metrics atomically (reset on restart).
 type Stats struct {
+	// Request counts
 	Total     atomic.Int64
 	OpenAI    atomic.Int64
 	Anthropic atomic.Int64
+
+	// Error / rate-limit counts
+	Errors      atomic.Int64 // upstream 4xx/5xx
+	RateLimited atomic.Int64 // 429 from rate limiter
+
+	// Latency accumulation — divide by Total for average
+	TotalLatencyMs atomic.Int64
+
+	// Bandwidth bytes
+	ReqBytes  atomic.Int64
+	RespBytes atomic.Int64
 }
 
 // Handler serves the dashboard HTML page.
@@ -43,39 +55,66 @@ func NewHandler(stats *Stats, cfg config.RateLimitConfig, version, baseURL strin
 
 // proxyData is the JSON payload injected into the HTML page.
 type proxyData struct {
-	Uptime    string        `json:"uptime"`
-	Version   string        `json:"version"`
-	BaseURL   string        `json:"base_url"`
-	Stats     statsData     `json:"stats"`
-	RateLimit rateLimitData `json:"rate_limit"`
+	Uptime     string        `json:"uptime"`
+	StartTime  string        `json:"start_time"`
+	Version    string        `json:"version"`
+	BaseURL    string        `json:"base_url"`
+	Stats      statsData     `json:"stats"`
+	RateLimit  rateLimitData `json:"rate_limit"`
 }
 
 type statsData struct {
-	Total     int64 `json:"total"`
-	OpenAI    int64 `json:"openai"`
-	Anthropic int64 `json:"anthropic"`
+	Total        int64   `json:"total"`
+	OpenAI       int64   `json:"openai"`
+	Anthropic    int64   `json:"anthropic"`
+	Errors       int64   `json:"errors"`
+	RateLimited  int64   `json:"rate_limited"`
+	SuccessRate  float64 `json:"success_rate"`   // 0–100
+	AvgLatencyMs int64   `json:"avg_latency_ms"` // ms
+	ReqBytes     int64   `json:"req_bytes"`
+	RespBytes    int64   `json:"resp_bytes"`
 }
 
 type rateLimitData struct {
+	Enabled           bool    `json:"enabled"`
 	RequestsPerSecond float64 `json:"requests_per_second"`
 	Burst             int     `json:"burst"`
 }
 
 // ServeHTTP serves the dashboard page.
 // It injects a <script> tag with window.__PROXY_DATA__ JSON before </head>.
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	uptime := time.Since(h.startTime).Round(time.Second).String()
+func (h *Handler) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
+	total := h.stats.Total.Load()
+	errors := h.stats.Errors.Load()
+	rateLimited := h.stats.RateLimited.Load()
+
+	var successRate float64 = 100
+	var avgLatencyMs int64
+	if total > 0 {
+		successRate = float64(total-errors-rateLimited) / float64(total) * 100
+		// round to 1 decimal
+		successRate = float64(int64(successRate*10+0.5)) / 10
+		avgLatencyMs = h.stats.TotalLatencyMs.Load() / total
+	}
 
 	data := proxyData{
-		Uptime:  uptime,
-		Version: h.version,
-		BaseURL: h.baseURL,
+		Uptime:    time.Since(h.startTime).Round(time.Second).String(),
+		StartTime: h.startTime.Format("2006-01-02 15:04:05"),
+		Version:   h.version,
+		BaseURL:   h.baseURL,
 		Stats: statsData{
-			Total:     h.stats.Total.Load(),
-			OpenAI:    h.stats.OpenAI.Load(),
-			Anthropic: h.stats.Anthropic.Load(),
+			Total:        total,
+			OpenAI:       h.stats.OpenAI.Load(),
+			Anthropic:    h.stats.Anthropic.Load(),
+			Errors:       errors,
+			RateLimited:  rateLimited,
+			SuccessRate:  successRate,
+			AvgLatencyMs: avgLatencyMs,
+			ReqBytes:     h.stats.ReqBytes.Load(),
+			RespBytes:    h.stats.RespBytes.Load(),
 		},
 		RateLimit: rateLimitData{
+			Enabled:           h.cfg.Enabled,
 			RequestsPerSecond: h.cfg.Default.RequestsPerSecond,
 			Burst:             h.cfg.Default.Burst,
 		},

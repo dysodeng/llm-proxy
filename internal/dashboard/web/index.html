@@ -139,6 +139,38 @@
       font-size: 1rem;
     }
 
+    .stat-item .sub {
+      font-size: 0.72rem;
+      color: #6b7280;
+      margin-top: 6px;
+    }
+
+    .stat-item .value.green { color: #4ade80; }
+    .stat-item .value.yellow { color: #facc15; }
+    .stat-item .value.red { color: #f87171; }
+
+    .section-title {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #4b5563;
+      margin-bottom: 12px;
+    }
+
+    .refresh-btn {
+      margin-left: auto;
+      font-size: 0.78rem;
+      color: #60a5fa;
+      background: none;
+      border: 1px solid #1e3a5f;
+      border-radius: 6px;
+      padding: 4px 12px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .refresh-btn:hover { background: #1e3a5f40; }
+
     /* Rate limit table */
     .rl-table {
       width: 100%;
@@ -224,11 +256,15 @@
 
     <!-- 运行状态 -->
     <div class="card" id="status-card">
-      <h2><span class="dot"></span>运行状态</h2>
+      <h2><span class="dot"></span>运行状态 <button class="refresh-btn" onclick="location.reload()">↻ 刷新</button></h2>
       <div class="runtime-grid">
         <div class="runtime-item">
           <span class="label">运行时长</span>
           <span class="value" id="stat-uptime">—</span>
+        </div>
+        <div class="runtime-item">
+          <span class="label">启动时间</span>
+          <span class="value" id="stat-start-time">—</span>
         </div>
         <div class="runtime-item">
           <span class="label">版本</span>
@@ -240,7 +276,8 @@
     <!-- 请求统计 -->
     <div class="card">
       <h2>请求统计</h2>
-      <div class="stats-grid">
+      <div class="section-title">请求量</div>
+      <div class="stats-grid" style="margin-bottom:16px">
         <div class="stat-item">
           <div class="label">总请求数</div>
           <div class="value" id="stat-total">—</div>
@@ -254,11 +291,43 @@
           <div class="value" id="stat-anthropic">—</div>
         </div>
       </div>
+      <div class="section-title">状态</div>
+      <div class="stats-grid" style="margin-bottom:16px">
+        <div class="stat-item">
+          <div class="label">成功率</div>
+          <div class="value" id="stat-success-rate">—</div>
+        </div>
+        <div class="stat-item">
+          <div class="label">错误数</div>
+          <div class="value" id="stat-errors">—</div>
+          <div class="sub">上游 4xx / 5xx</div>
+        </div>
+        <div class="stat-item">
+          <div class="label">限流次数</div>
+          <div class="value" id="stat-rate-limited">—</div>
+          <div class="sub">429 响应</div>
+        </div>
+      </div>
+      <div class="section-title">性能 &amp; 流量</div>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="label">平均延迟</div>
+          <div class="value text-sm" id="stat-avg-latency">—</div>
+        </div>
+        <div class="stat-item">
+          <div class="label">请求流量</div>
+          <div class="value text-sm" id="stat-req-bytes">—</div>
+        </div>
+        <div class="stat-item">
+          <div class="label">响应流量</div>
+          <div class="value text-sm" id="stat-resp-bytes">—</div>
+        </div>
+      </div>
     </div>
 
     <!-- 限流配置 -->
     <div class="card">
-      <h2>限流配置 <span class="badge">默认</span></h2>
+      <h2>限流配置 <span class="badge" id="rl-badge">—</span></h2>
       <table class="rl-table">
         <thead>
           <tr>
@@ -329,19 +398,56 @@ curl <span class="flag">-N</span> <span class="url" id="url-anthropic-stream">ht
         var el = document.getElementById(id);
         if (el) el.textContent = val != null ? String(val) : "—";
       }
+      function setClass(id, cls) {
+        var el = document.getElementById(id);
+        if (el) el.className = "value " + cls;
+      }
+      function fmtBytes(b) {
+        if (b == null) return "—";
+        if (b < 1024) return b + " B";
+        if (b < 1024 * 1024) return (b / 1024).toFixed(1) + " KB";
+        if (b < 1024 * 1024 * 1024) return (b / 1024 / 1024).toFixed(2) + " MB";
+        return (b / 1024 / 1024 / 1024).toFixed(2) + " GB";
+      }
 
-      setText("stat-uptime",    data.uptime);
-      setText("stat-version",   data.version);
-      setText("stat-total",     data.stats    && data.stats.total);
-      setText("stat-openai",    data.stats    && data.stats.openai);
-      setText("stat-anthropic", data.stats    && data.stats.anthropic);
-      setText("rl-rps",         data.rate_limit && data.rate_limit.requests_per_second);
-      setText("rl-burst",       data.rate_limit && data.rate_limit.burst);
+      // 运行状态
+      setText("stat-uptime",      data.uptime);
+      setText("stat-start-time",  data.start_time);
+      setText("stat-version",     data.version);
 
+      // 请求量
+      var s = data.stats || {};
+      setText("stat-total",       s.total);
+      setText("stat-openai",      s.openai);
+      setText("stat-anthropic",   s.anthropic);
+
+      // 状态
+      var rate = s.success_rate != null ? s.success_rate.toFixed(1) + "%" : "—";
+      setText("stat-success-rate", rate);
+      var cls = s.success_rate >= 99 ? "green" : s.success_rate >= 95 ? "yellow" : "red";
+      if (s.total > 0) setClass("stat-success-rate", cls);
+      setText("stat-errors",      s.errors);
+      setText("stat-rate-limited", s.rate_limited);
+
+      // 性能 & 流量
+      setText("stat-avg-latency", s.avg_latency_ms != null ? s.avg_latency_ms + " ms" : "—");
+      setText("stat-req-bytes",   fmtBytes(s.req_bytes));
+      setText("stat-resp-bytes",  fmtBytes(s.resp_bytes));
+
+      // 限流配置
+      var rl = data.rate_limit || {};
+      setText("rl-rps",   rl.requests_per_second);
+      setText("rl-burst", rl.burst);
+      setText("rl-badge", rl.enabled ? "已启用" : "已禁用");
+      var badge = document.getElementById("rl-badge");
+      if (badge) badge.style.background = rl.enabled ? "#14532d" : "#7f1d1d",
+                 badge.style.color      = rl.enabled ? "#4ade80" : "#f87171";
+
+      // base_url 替换
       if (data.base_url) {
-        setText("url-openai",          data.base_url);
-        setText("url-openai-stream",   data.base_url);
-        setText("url-anthropic",       data.base_url);
+        setText("url-openai",           data.base_url);
+        setText("url-openai-stream",    data.base_url);
+        setText("url-anthropic",        data.base_url);
         setText("url-anthropic-stream", data.base_url);
       }
     })();
