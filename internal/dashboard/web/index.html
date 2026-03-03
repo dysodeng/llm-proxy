@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LLM 代理控制台</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #0f1117;
+      color: #d1d5db;
+      min-height: 100vh;
+      padding: 0 0 48px;
+    }
+
+    header {
+      background: #1a1d27;
+      border-bottom: 1px solid #2d3148;
+      padding: 20px 32px;
+    }
+
+    header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #f3f4f6;
+      letter-spacing: -0.02em;
+    }
+
+    header p.subtitle {
+      margin-top: 4px;
+      font-size: 0.875rem;
+      color: #6b7280;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 32px auto;
+      padding: 0 24px;
+      display: grid;
+      gap: 24px;
+    }
+
+    .card {
+      background: #1a1d27;
+      border: 1px solid #2d3148;
+      border-radius: 10px;
+      padding: 24px;
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #e5e7eb;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #2d3148;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card h2 .badge {
+      font-size: 0.7rem;
+      font-weight: 500;
+      background: #1e3a5f;
+      color: #60a5fa;
+      padding: 2px 8px;
+      border-radius: 99px;
+    }
+
+    /* Usage Guide */
+    .usage-block {
+      margin-bottom: 20px;
+    }
+
+    .usage-block:last-child {
+      margin-bottom: 0;
+    }
+
+    .usage-block h3 {
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #9ca3af;
+      margin-bottom: 8px;
+    }
+
+    pre {
+      background: #0d0f18;
+      border: 1px solid #2d3148;
+      border-radius: 6px;
+      padding: 14px 16px;
+      font-family: "SF Mono", "Fira Code", "Consolas", "Monaco", monospace;
+      font-size: 0.78rem;
+      line-height: 1.65;
+      color: #a5f3c0;
+      overflow-x: auto;
+      white-space: pre;
+    }
+
+    pre .comment { color: #4b5563; }
+    pre .flag    { color: #93c5fd; }
+    pre .string  { color: #fde68a; }
+    pre .url     { color: #a78bfa; }
+
+    /* Stats grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px;
+    }
+
+    .stat-item {
+      background: #0d0f18;
+      border: 1px solid #2d3148;
+      border-radius: 8px;
+      padding: 16px 20px;
+    }
+
+    .stat-item .label {
+      font-size: 0.75rem;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 8px;
+    }
+
+    .stat-item .value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #f9fafb;
+      line-height: 1;
+    }
+
+    .stat-item .value.text-sm {
+      font-size: 1rem;
+    }
+
+    /* Rate limit table */
+    .rl-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .rl-table th,
+    .rl-table td {
+      text-align: left;
+      padding: 10px 14px;
+      font-size: 0.875rem;
+      border-bottom: 1px solid #2d3148;
+    }
+
+    .rl-table th {
+      color: #6b7280;
+      font-weight: 500;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .rl-table td {
+      color: #e5e7eb;
+      font-weight: 500;
+    }
+
+    .rl-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* Status row */
+    .runtime-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+
+    .runtime-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .runtime-item .label {
+      font-size: 0.75rem;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .runtime-item .value {
+      font-size: 0.95rem;
+      color: #f9fafb;
+      font-weight: 600;
+    }
+
+    .dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #22c55e;
+      margin-right: 6px;
+      box-shadow: 0 0 6px #22c55e80;
+    }
+
+    footer {
+      text-align: center;
+      font-size: 0.75rem;
+      color: #374151;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>LLM 代理控制台</h1>
+    <p class="subtitle">OpenAI 与 Anthropic API 统一网关</p>
+  </header>
+
+  <div class="container">
+
+    <!-- 运行状态 -->
+    <div class="card" id="status-card">
+      <h2><span class="dot"></span>运行状态</h2>
+      <div class="runtime-grid">
+        <div class="runtime-item">
+          <span class="label">运行时长</span>
+          <span class="value" id="stat-uptime">—</span>
+        </div>
+        <div class="runtime-item">
+          <span class="label">版本</span>
+          <span class="value" id="stat-version">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 请求统计 -->
+    <div class="card">
+      <h2>请求统计</h2>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="label">总请求数</div>
+          <div class="value" id="stat-total">—</div>
+        </div>
+        <div class="stat-item">
+          <div class="label">OpenAI</div>
+          <div class="value" id="stat-openai">—</div>
+        </div>
+        <div class="stat-item">
+          <div class="label">Anthropic</div>
+          <div class="value" id="stat-anthropic">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 限流配置 -->
+    <div class="card">
+      <h2>限流配置 <span class="badge">默认</span></h2>
+      <table class="rl-table">
+        <thead>
+          <tr>
+            <th>参数</th>
+            <th>值</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>每秒请求数</td>
+            <td id="rl-rps">—</td>
+          </tr>
+          <tr>
+            <td>突发上限</td>
+            <td id="rl-burst">—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 使用指南 -->
+    <div class="card">
+      <h2>使用指南</h2>
+
+      <div class="usage-block">
+        <h3>OpenAI</h3>
+        <pre id="usage-openai"><span class="comment"># OpenAI</span>
+curl <span class="url" id="url-openai">http://localhost:8080</span>/openai/v1/chat/completions \
+  <span class="flag">-H</span> <span class="string">"Authorization: Bearer $OPENAI_API_KEY"</span> \
+  <span class="flag">-H</span> <span class="string">"Content-Type: application/json"</span> \
+  <span class="flag">-d</span> <span class="string">'{"model": "gpt-4o", "messages": [{"role": "user", "content": "Hello"}]}'</span></pre>
+      </div>
+
+      <div class="usage-block">
+        <h3>Anthropic</h3>
+        <pre id="usage-anthropic"><span class="comment"># Anthropic</span>
+curl <span class="url" id="url-anthropic">http://localhost:8080</span>/anthropic/v1/messages \
+  <span class="flag">-H</span> <span class="string">"x-api-key: $ANTHROPIC_API_KEY"</span> \
+  <span class="flag">-H</span> <span class="string">"anthropic-version: 2023-06-01"</span> \
+  <span class="flag">-H</span> <span class="string">"Content-Type: application/json"</span> \
+  <span class="flag">-d</span> <span class="string">'{"model": "claude-opus-4-6", "max_tokens": 1024, "messages": [{"role": "user", "content": "Hello"}]}'</span></pre>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>LLM 代理 &mdash; 基于 Go 构建</footer>
+
+  <script>
+    (function () {
+      var data = window.__PROXY_DATA__;
+      if (!data) return;
+
+      function setText(id, val) {
+        var el = document.getElementById(id);
+        if (el) el.textContent = val != null ? String(val) : "—";
+      }
+
+      setText("stat-uptime",    data.uptime);
+      setText("stat-version",   data.version);
+      setText("stat-total",     data.stats    && data.stats.total);
+      setText("stat-openai",    data.stats    && data.stats.openai);
+      setText("stat-anthropic", data.stats    && data.stats.anthropic);
+      setText("rl-rps",         data.rate_limit && data.rate_limit.requests_per_second);
+      setText("rl-burst",       data.rate_limit && data.rate_limit.burst);
+
+      if (data.base_url) {
+        setText("url-openai",    data.base_url);
+        setText("url-anthropic", data.base_url);
+      }
+    })();
+  </script>
+</body>
+</html>
