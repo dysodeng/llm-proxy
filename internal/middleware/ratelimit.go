@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/time/rate"
 
-	"llm-proxy/internal/config"
+	"github.com/dysodeng/llm-proxy/internal/config"
 )
 
 // RateLimiter enforces per-API-key rate limiting using token bucket algorithm.

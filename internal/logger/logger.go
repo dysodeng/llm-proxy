@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
 
-	"llm-proxy/internal/config"
+	"github.com/dysodeng/llm-proxy/internal/config"
 )
 
 // New creates a zap logger that writes to both stdout and a rotating log file.

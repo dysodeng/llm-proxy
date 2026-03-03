@@ -1,4 +1,4 @@
-module llm-proxy
+module github.com/dysodeng/llm-proxy
 
 go 1.25
 
