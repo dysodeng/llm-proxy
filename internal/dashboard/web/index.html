@@ -4,58 +4,193 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LLM 代理控制台</title>
+
+  <!-- 主题初始化：在页面渲染前执行，避免闪烁 -->
+  <script>
+    (function () {
+      var saved = localStorage.getItem('llm-proxy-theme');
+      if (saved === 'light' || saved === 'dark') {
+        document.documentElement.setAttribute('data-theme', saved);
+      }
+    })();
+  </script>
+
   <style>
+    /* ─── CSS 变量：深色（默认） ─────────────────────────────────── */
+    :root {
+      --bg:          #0f1117;
+      --surface:     #1a1d27;
+      --surface2:    #0d0f18;
+      --border:      #2d3148;
+      --text:        #d1d5db;
+      --text-strong: #f3f4f6;
+      --text-value:  #f9fafb;
+      --text-muted:  #6b7280;
+      --text-h2:     #e5e7eb;
+      --accent:      #60a5fa;
+      --accent-bg:   #1e3a5f;
+      --section-fg:  #4b5563;
+      --footer-fg:   #374151;
+      --pre-bg:      #0b0d16;
+      --pre-text:    #a5f3c0;
+      --pre-comment: #4b5563;
+      --pre-flag:    #93c5fd;
+      --pre-string:  #fde68a;
+      --pre-url:     #a78bfa;
+      --dot-color:   #22c55e;
+    }
+
+    /* ─── 系统浅色时自动切换（无手动覆盖时生效） ───────────────── */
+    @media (prefers-color-scheme: light) {
+      :root:not([data-theme="dark"]) {
+        --bg:          #f0f2f5;
+        --surface:     #ffffff;
+        --surface2:    #f5f6fa;
+        --border:      #e2e6ef;
+        --text:        #4b5563;
+        --text-strong: #111827;
+        --text-value:  #111827;
+        --text-muted:  #9ca3af;
+        --text-h2:     #1f2937;
+        --accent:      #2563eb;
+        --accent-bg:   #dbeafe;
+        --section-fg:  #b0b8c8;
+        --footer-fg:   #b0b8c8;
+        --pre-bg:      #1e1e2e;
+        --pre-text:    #a6e3a1;
+        --pre-comment: #6c7086;
+        --pre-flag:    #89b4fa;
+        --pre-string:  #f9e2af;
+        --pre-url:     #cba6f7;
+        --dot-color:   #16a34a;
+      }
+    }
+
+    /* ─── 手动浅色 ──────────────────────────────────────────────── */
+    html[data-theme="light"] {
+      --bg:          #f0f2f5;
+      --surface:     #ffffff;
+      --surface2:    #f5f6fa;
+      --border:      #e2e6ef;
+      --text:        #4b5563;
+      --text-strong: #111827;
+      --text-value:  #111827;
+      --text-muted:  #9ca3af;
+      --text-h2:     #1f2937;
+      --accent:      #2563eb;
+      --accent-bg:   #dbeafe;
+      --section-fg:  #b0b8c8;
+      --footer-fg:   #b0b8c8;
+      --pre-bg:      #1e1e2e;
+      --pre-text:    #a6e3a1;
+      --pre-comment: #6c7086;
+      --pre-flag:    #89b4fa;
+      --pre-string:  #f9e2af;
+      --pre-url:     #cba6f7;
+      --dot-color:   #16a34a;
+    }
+
+    /* ─── 手动深色 ──────────────────────────────────────────────── */
+    html[data-theme="dark"] {
+      --bg:          #0f1117;
+      --surface:     #1a1d27;
+      --surface2:    #0d0f18;
+      --border:      #2d3148;
+      --text:        #d1d5db;
+      --text-strong: #f3f4f6;
+      --text-value:  #f9fafb;
+      --text-muted:  #6b7280;
+      --text-h2:     #e5e7eb;
+      --accent:      #60a5fa;
+      --accent-bg:   #1e3a5f;
+      --section-fg:  #4b5563;
+      --footer-fg:   #374151;
+      --pre-bg:      #0b0d16;
+      --pre-text:    #a5f3c0;
+      --pre-comment: #4b5563;
+      --pre-flag:    #93c5fd;
+      --pre-string:  #fde68a;
+      --pre-url:     #a78bfa;
+      --dot-color:   #22c55e;
+    }
+
+    /* ─── 基础 ──────────────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background: #0f1117;
-      color: #d1d5db;
+      background: var(--bg);
+      color: var(--text);
       min-height: 100vh;
       padding: 0 0 48px;
+      transition: background 0.2s, color 0.2s;
     }
 
+    /* ─── Header ─────────────────────────────────────────────────── */
     header {
-      background: #1a1d27;
-      border-bottom: 1px solid #2d3148;
-      padding: 20px 32px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
     }
+
+    header .brand { flex: 1; }
 
     header h1 {
-      font-size: 1.5rem;
+      font-size: 1.4rem;
       font-weight: 700;
-      color: #f3f4f6;
+      color: var(--text-strong);
       letter-spacing: -0.02em;
     }
 
     header p.subtitle {
-      margin-top: 4px;
-      font-size: 0.875rem;
-      color: #6b7280;
+      margin-top: 3px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
     }
 
+    /* ─── 主题切换按钮 ───────────────────────────────────────────── */
+    #theme-toggle {
+      flex-shrink: 0;
+      font-size: 0.8rem;
+      font-family: inherit;
+      color: var(--accent);
+      background: var(--accent-bg);
+      border: 1px solid transparent;
+      border-radius: 20px;
+      padding: 5px 14px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      white-space: nowrap;
+    }
+    #theme-toggle:hover { opacity: 0.8; }
+
+    /* ─── Layout ─────────────────────────────────────────────────── */
     .container {
       max-width: 960px;
-      margin: 32px auto;
+      margin: 28px auto;
       padding: 0 24px;
       display: grid;
-      gap: 24px;
+      gap: 20px;
     }
 
+    /* ─── Card ───────────────────────────────────────────────────── */
     .card {
-      background: #1a1d27;
-      border: 1px solid #2d3148;
+      background: var(--surface);
+      border: 1px solid var(--border);
       border-radius: 10px;
-      padding: 24px;
+      padding: 22px 24px;
     }
 
     .card h2 {
-      font-size: 1rem;
+      font-size: 0.95rem;
       font-weight: 600;
-      color: #e5e7eb;
+      color: var(--text-h2);
       margin-bottom: 16px;
       padding-bottom: 12px;
-      border-bottom: 1px solid #2d3148;
+      border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
       gap: 8px;
@@ -64,114 +199,104 @@
     .card h2 .badge {
       font-size: 0.7rem;
       font-weight: 500;
-      background: #1e3a5f;
-      color: #60a5fa;
+      background: var(--accent-bg);
+      color: var(--accent);
       padding: 2px 8px;
       border-radius: 99px;
     }
 
-    /* Usage Guide */
-    .usage-block {
-      margin-bottom: 20px;
-    }
-
-    .usage-block:last-child {
-      margin-bottom: 0;
-    }
-
-    .usage-block h3 {
-      font-size: 0.8rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.07em;
-      color: #9ca3af;
-      margin-bottom: 8px;
-    }
-
-    pre {
-      background: #0d0f18;
-      border: 1px solid #2d3148;
-      border-radius: 6px;
-      padding: 14px 16px;
-      font-family: "SF Mono", "Fira Code", "Consolas", "Monaco", monospace;
+    /* ─── Refresh button ─────────────────────────────────────────── */
+    .refresh-btn {
+      margin-left: auto;
       font-size: 0.78rem;
-      line-height: 1.65;
-      color: #a5f3c0;
-      overflow-x: auto;
-      white-space: pre;
+      font-family: inherit;
+      color: var(--accent);
+      background: none;
+      border: 1px solid var(--accent-bg);
+      border-radius: 6px;
+      padding: 3px 11px;
+      cursor: pointer;
+      transition: background 0.15s;
     }
+    .refresh-btn:hover { background: var(--accent-bg); }
 
-    pre .comment { color: #4b5563; }
-    pre .flag    { color: #93c5fd; }
-    pre .string  { color: #fde68a; }
-    pre .url     { color: #a78bfa; }
-
-    /* Stats grid */
-    .stats-grid {
+    /* ─── Runtime grid ───────────────────────────────────────────── */
+    .runtime-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 16px;
     }
 
+    .runtime-item {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .runtime-item .label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .runtime-item .value {
+      font-size: 0.92rem;
+      color: var(--text-value);
+      font-weight: 600;
+    }
+
+    /* ─── Section title ──────────────────────────────────────────── */
+    .section-title {
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--section-fg);
+      margin-bottom: 10px;
+    }
+
+    /* ─── Stats grid ─────────────────────────────────────────────── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+    }
+
     .stat-item {
-      background: #0d0f18;
-      border: 1px solid #2d3148;
+      background: var(--surface2);
+      border: 1px solid var(--border);
       border-radius: 8px;
-      padding: 16px 20px;
+      padding: 14px 16px;
     }
 
     .stat-item .label {
-      font-size: 0.75rem;
-      color: #6b7280;
+      font-size: 0.72rem;
+      color: var(--text-muted);
       text-transform: uppercase;
       letter-spacing: 0.06em;
       margin-bottom: 8px;
     }
 
     .stat-item .value {
-      font-size: 1.6rem;
+      font-size: 1.55rem;
       font-weight: 700;
-      color: #f9fafb;
+      color: var(--text-value);
       line-height: 1;
     }
 
-    .stat-item .value.text-sm {
-      font-size: 1rem;
-    }
-
+    .stat-item .value.text-sm { font-size: 1rem; }
     .stat-item .sub {
-      font-size: 0.72rem;
-      color: #6b7280;
-      margin-top: 6px;
-    }
-
-    .stat-item .value.green { color: #4ade80; }
-    .stat-item .value.yellow { color: #facc15; }
-    .stat-item .value.red { color: #f87171; }
-
-    .section-title {
       font-size: 0.7rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: #4b5563;
-      margin-bottom: 12px;
+      color: var(--text-muted);
+      margin-top: 5px;
     }
 
-    .refresh-btn {
-      margin-left: auto;
-      font-size: 0.78rem;
-      color: #60a5fa;
-      background: none;
-      border: 1px solid #1e3a5f;
-      border-radius: 6px;
-      padding: 4px 12px;
-      cursor: pointer;
-      transition: background 0.15s;
-    }
-    .refresh-btn:hover { background: #1e3a5f40; }
+    .stat-item .value.green  { color: #22c55e; }
+    .stat-item .value.yellow { color: #eab308; }
+    .stat-item .value.red    { color: #ef4444; }
 
-    /* Rate limit table */
+    /* ─── Rate limit table ───────────────────────────────────────── */
     .rl-table {
       width: 100%;
       border-collapse: collapse;
@@ -180,82 +305,86 @@
     .rl-table th,
     .rl-table td {
       text-align: left;
-      padding: 10px 14px;
+      padding: 9px 14px;
       font-size: 0.875rem;
-      border-bottom: 1px solid #2d3148;
+      border-bottom: 1px solid var(--border);
     }
 
     .rl-table th {
-      color: #6b7280;
+      color: var(--text-muted);
       font-weight: 500;
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
 
-    .rl-table td {
-      color: #e5e7eb;
-      font-weight: 500;
-    }
+    .rl-table td { color: var(--text-h2); font-weight: 500; }
+    .rl-table tr:last-child td { border-bottom: none; }
 
-    .rl-table tr:last-child td {
-      border-bottom: none;
-    }
+    /* ─── Usage Guide ────────────────────────────────────────────── */
+    .usage-block { margin-bottom: 20px; }
+    .usage-block:last-child { margin-bottom: 0; }
 
-    /* Status row */
-    .runtime-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 16px;
-    }
-
-    .runtime-item {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .runtime-item .label {
-      font-size: 0.75rem;
-      color: #6b7280;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-    }
-
-    .runtime-item .value {
-      font-size: 0.95rem;
-      color: #f9fafb;
+    .usage-block h3 {
+      font-size: 0.78rem;
       font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-muted);
+      margin-bottom: 8px;
     }
 
+    pre {
+      background: var(--pre-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px 16px;
+      font-family: "SF Mono", "Fira Code", "Consolas", "Monaco", monospace;
+      font-size: 0.78rem;
+      line-height: 1.65;
+      color: var(--pre-text);
+      overflow-x: auto;
+      white-space: pre;
+    }
+
+    pre .comment { color: var(--pre-comment); }
+    pre .flag    { color: var(--pre-flag); }
+    pre .string  { color: var(--pre-string); }
+    pre .url     { color: var(--pre-url); }
+
+    /* ─── Status dot ─────────────────────────────────────────────── */
     .dot {
       display: inline-block;
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: #22c55e;
-      margin-right: 6px;
-      box-shadow: 0 0 6px #22c55e80;
+      background: var(--dot-color);
+      margin-right: 4px;
+      box-shadow: 0 0 6px color-mix(in srgb, var(--dot-color) 50%, transparent);
     }
 
+    /* ─── Footer ─────────────────────────────────────────────────── */
     footer {
       text-align: center;
       font-size: 0.75rem;
-      color: #374151;
+      color: var(--footer-fg);
       margin-top: 16px;
     }
   </style>
 </head>
 <body>
   <header>
-    <h1>LLM 代理控制台</h1>
-    <p class="subtitle">OpenAI 与 Anthropic API 统一网关</p>
+    <div class="brand">
+      <h1>LLM 代理控制台</h1>
+      <p class="subtitle">OpenAI 与 Anthropic API 统一网关</p>
+    </div>
+    <button id="theme-toggle" onclick="cycleTheme()">…</button>
   </header>
 
   <div class="container">
 
     <!-- 运行状态 -->
-    <div class="card" id="status-card">
+    <div class="card">
       <h2><span class="dot"></span>运行状态 <button class="refresh-btn" onclick="location.reload()">↻ 刷新</button></h2>
       <div class="runtime-grid">
         <div class="runtime-item">
@@ -330,20 +459,11 @@
       <h2>限流配置 <span class="badge" id="rl-badge">—</span></h2>
       <table class="rl-table">
         <thead>
-          <tr>
-            <th>参数</th>
-            <th>值</th>
-          </tr>
+          <tr><th>参数</th><th>值</th></tr>
         </thead>
         <tbody>
-          <tr>
-            <td>每秒请求数</td>
-            <td id="rl-rps">—</td>
-          </tr>
-          <tr>
-            <td>突发上限</td>
-            <td id="rl-burst">—</td>
-          </tr>
+          <tr><td>每秒请求数</td><td id="rl-rps">—</td></tr>
+          <tr><td>突发上限</td><td id="rl-burst">—</td></tr>
         </tbody>
       </table>
     </div>
@@ -390,65 +510,96 @@ curl <span class="flag">-N</span> <span class="url" id="url-anthropic-stream">ht
   <footer>LLM 代理 &mdash; 基于 Go 构建</footer>
 
   <script>
+    /* ── 主题切换 ─────────────────────────────────────────────────── */
+    var THEME_KEY = 'llm-proxy-theme';
+    var THEMES    = ['auto', 'light', 'dark'];
+    var LABELS    = { auto: '💻 跟随系统', light: '☀️ 浅色', dark: '🌙 深色' };
+
+    function applyTheme(t) {
+      if (t === 'auto') {
+        document.documentElement.removeAttribute('data-theme');
+      } else {
+        document.documentElement.setAttribute('data-theme', t);
+      }
+      var btn = document.getElementById('theme-toggle');
+      if (btn) btn.textContent = LABELS[t] || t;
+    }
+
+    function currentTheme() {
+      return localStorage.getItem(THEME_KEY) || 'auto';
+    }
+
+    function cycleTheme() {
+      var idx  = THEMES.indexOf(currentTheme());
+      var next = THEMES[(idx + 1) % THEMES.length];
+      localStorage.setItem(THEME_KEY, next);
+      applyTheme(next);
+    }
+
+    applyTheme(currentTheme());
+
+    /* ── 数据填充 ─────────────────────────────────────────────────── */
     (function () {
       var data = window.__PROXY_DATA__;
       if (!data) return;
 
       function setText(id, val) {
         var el = document.getElementById(id);
-        if (el) el.textContent = val != null ? String(val) : "—";
+        if (el) el.textContent = val != null ? String(val) : '—';
       }
       function setClass(id, cls) {
         var el = document.getElementById(id);
-        if (el) el.className = "value " + cls;
+        if (el) el.className = 'value ' + cls;
       }
       function fmtBytes(b) {
-        if (b == null) return "—";
-        if (b < 1024) return b + " B";
-        if (b < 1024 * 1024) return (b / 1024).toFixed(1) + " KB";
-        if (b < 1024 * 1024 * 1024) return (b / 1024 / 1024).toFixed(2) + " MB";
-        return (b / 1024 / 1024 / 1024).toFixed(2) + " GB";
+        if (b == null) return '—';
+        if (b < 1024)             return b + ' B';
+        if (b < 1048576)          return (b / 1024).toFixed(1) + ' KB';
+        if (b < 1073741824)       return (b / 1048576).toFixed(2) + ' MB';
+        return (b / 1073741824).toFixed(2) + ' GB';
       }
 
       // 运行状态
-      setText("stat-uptime",      data.uptime);
-      setText("stat-start-time",  data.start_time);
-      setText("stat-version",     data.version);
+      setText('stat-uptime',     data.uptime);
+      setText('stat-start-time', data.start_time);
+      setText('stat-version',    data.version);
 
       // 请求量
       var s = data.stats || {};
-      setText("stat-total",       s.total);
-      setText("stat-openai",      s.openai);
-      setText("stat-anthropic",   s.anthropic);
+      setText('stat-total',     s.total);
+      setText('stat-openai',    s.openai);
+      setText('stat-anthropic', s.anthropic);
 
       // 状态
-      var rate = s.success_rate != null ? s.success_rate.toFixed(1) + "%" : "—";
-      setText("stat-success-rate", rate);
-      var cls = s.success_rate >= 99 ? "green" : s.success_rate >= 95 ? "yellow" : "red";
-      if (s.total > 0) setClass("stat-success-rate", cls);
-      setText("stat-errors",      s.errors);
-      setText("stat-rate-limited", s.rate_limited);
+      setText('stat-success-rate',  s.success_rate != null ? s.success_rate.toFixed(1) + '%' : '—');
+      if (s.total > 0) {
+        setClass('stat-success-rate', s.success_rate >= 99 ? 'green' : s.success_rate >= 95 ? 'yellow' : 'red');
+      }
+      setText('stat-errors',       s.errors);
+      setText('stat-rate-limited', s.rate_limited);
 
       // 性能 & 流量
-      setText("stat-avg-latency", s.avg_latency_ms != null ? s.avg_latency_ms + " ms" : "—");
-      setText("stat-req-bytes",   fmtBytes(s.req_bytes));
-      setText("stat-resp-bytes",  fmtBytes(s.resp_bytes));
+      setText('stat-avg-latency', s.avg_latency_ms != null ? s.avg_latency_ms + ' ms' : '—');
+      setText('stat-req-bytes',   fmtBytes(s.req_bytes));
+      setText('stat-resp-bytes',  fmtBytes(s.resp_bytes));
 
       // 限流配置
       var rl = data.rate_limit || {};
-      setText("rl-rps",   rl.requests_per_second);
-      setText("rl-burst", rl.burst);
-      setText("rl-badge", rl.enabled ? "已启用" : "已禁用");
-      var badge = document.getElementById("rl-badge");
-      if (badge) badge.style.background = rl.enabled ? "#14532d" : "#7f1d1d",
-                 badge.style.color      = rl.enabled ? "#4ade80" : "#f87171";
+      setText('rl-rps',   rl.requests_per_second);
+      setText('rl-burst', rl.burst);
+      setText('rl-badge', rl.enabled ? '已启用' : '已禁用');
+      var badge = document.getElementById('rl-badge');
+      if (badge) {
+        badge.style.background = rl.enabled ? '#14532d' : '#7f1d1d';
+        badge.style.color      = rl.enabled ? '#4ade80' : '#f87171';
+      }
 
       // base_url 替换
       if (data.base_url) {
-        setText("url-openai",           data.base_url);
-        setText("url-openai-stream",    data.base_url);
-        setText("url-anthropic",        data.base_url);
-        setText("url-anthropic-stream", data.base_url);
+        setText('url-openai',           data.base_url);
+        setText('url-openai-stream',    data.base_url);
+        setText('url-anthropic',        data.base_url);
+        setText('url-anthropic-stream', data.base_url);
       }
     })();
   </script>
