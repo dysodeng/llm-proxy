@@ -285,21 +285,34 @@
 
       <div class="usage-block">
         <h3>OpenAI</h3>
-        <pre id="usage-openai"><span class="comment"># OpenAI</span>
+        <pre><span class="comment"># 普通请求</span>
 curl <span class="url" id="url-openai">http://localhost:8080</span>/openai/v1/chat/completions \
   <span class="flag">-H</span> <span class="string">"Authorization: Bearer $OPENAI_API_KEY"</span> \
   <span class="flag">-H</span> <span class="string">"Content-Type: application/json"</span> \
-  <span class="flag">-d</span> <span class="string">'{"model": "gpt-4o", "messages": [{"role": "user", "content": "Hello"}]}'</span></pre>
+  <span class="flag">-d</span> <span class="string">'{"model": "gpt-4o", "messages": [{"role": "user", "content": "Hello"}]}'</span>
+
+<span class="comment"># 流式输出（SSE）</span>
+curl <span class="flag">-N</span> <span class="url" id="url-openai-stream">http://localhost:8080</span>/openai/v1/chat/completions \
+  <span class="flag">-H</span> <span class="string">"Authorization: Bearer $OPENAI_API_KEY"</span> \
+  <span class="flag">-H</span> <span class="string">"Content-Type: application/json"</span> \
+  <span class="flag">-d</span> <span class="string">'{"model": "gpt-4o", "stream": true, "messages": [{"role": "user", "content": "Hello"}]}'</span></pre>
       </div>
 
       <div class="usage-block">
         <h3>Anthropic</h3>
-        <pre id="usage-anthropic"><span class="comment"># Anthropic</span>
+        <pre><span class="comment"># 普通请求</span>
 curl <span class="url" id="url-anthropic">http://localhost:8080</span>/anthropic/v1/messages \
   <span class="flag">-H</span> <span class="string">"x-api-key: $ANTHROPIC_API_KEY"</span> \
   <span class="flag">-H</span> <span class="string">"anthropic-version: 2023-06-01"</span> \
   <span class="flag">-H</span> <span class="string">"Content-Type: application/json"</span> \
-  <span class="flag">-d</span> <span class="string">'{"model": "claude-opus-4-6", "max_tokens": 1024, "messages": [{"role": "user", "content": "Hello"}]}'</span></pre>
+  <span class="flag">-d</span> <span class="string">'{"model": "claude-opus-4-6", "max_tokens": 1024, "messages": [{"role": "user", "content": "Hello"}]}'</span>
+
+<span class="comment"># 流式输出（SSE）</span>
+curl <span class="flag">-N</span> <span class="url" id="url-anthropic-stream">http://localhost:8080</span>/anthropic/v1/messages \
+  <span class="flag">-H</span> <span class="string">"x-api-key: $ANTHROPIC_API_KEY"</span> \
+  <span class="flag">-H</span> <span class="string">"anthropic-version: 2023-06-01"</span> \
+  <span class="flag">-H</span> <span class="string">"Content-Type: application/json"</span> \
+  <span class="flag">-d</span> <span class="string">'{"model": "claude-opus-4-6", "max_tokens": 1024, "stream": true, "messages": [{"role": "user", "content": "Hello"}]}'</span></pre>
       </div>
     </div>
 
@@ -326,8 +339,10 @@ curl <span class="url" id="url-anthropic">http://localhost:8080</span>/anthropic
       setText("rl-burst",       data.rate_limit && data.rate_limit.burst);
 
       if (data.base_url) {
-        setText("url-openai",    data.base_url);
-        setText("url-anthropic", data.base_url);
+        setText("url-openai",          data.base_url);
+        setText("url-openai-stream",   data.base_url);
+        setText("url-anthropic",       data.base_url);
+        setText("url-anthropic-stream", data.base_url);
       }
     })();
   </script>
