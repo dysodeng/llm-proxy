@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
   <title>LLM 代理控制台</title>
 
   <!-- 主题初始化：在页面渲染前执行，避免闪烁 -->
@@ -611,17 +611,17 @@
       <h2>使用指南</h2>
 
       <div class="tabs">
-        <button class="tab active"  onclick="switchTab(this,'tab-curl')">curl</button>
+        <button class="tab active"  onclick="switchTab(this,'tab-curl')">CURL</button>
         <button class="tab"         onclick="switchTab(this,'tab-python')">Python</button>
         <button class="tab"         onclick="switchTab(this,'tab-nodejs')">Node.js</button>
         <button class="tab"         onclick="switchTab(this,'tab-go')">Go</button>
-        <button class="tab"         onclick="switchTab(this,'tab-dify')">Dify</button>
         <button class="tab"         onclick="switchTab(this,'tab-langchain')">LangChain</button>
+        <button class="tab"         onclick="switchTab(this,'tab-dify')">Dify</button>
         <button class="tab"         onclick="switchTab(this,'tab-coze')">扣子</button>
       </div>
 
       <!-- ── curl ── -->
-      <div id="tab-curl" class="tab-panel active">
+      <div class="tab-panel active" id="tab-curl">
         <div class="usage-block">
           <h3>OpenAI</h3>
           <pre><span class="comment"># 普通请求</span>
@@ -655,7 +655,7 @@ curl <span class="flag">-N</span> <span class="url" id="url-anthropic-stream">ht
       </div>
 
       <!-- ── Python ── -->
-      <div id="tab-python" class="tab-panel">
+      <div class="tab-panel" id="tab-python">
         <div class="usage-block">
           <h3>OpenAI SDK</h3>
           <pre><span class="comment"># pip install openai</span>
@@ -692,7 +692,7 @@ print(message.content[0].text)</pre>
       </div>
 
       <!-- ── Node.js ── -->
-      <div id="tab-nodejs" class="tab-panel">
+      <div class="tab-panel" id="tab-nodejs">
         <div class="usage-block">
           <h3>OpenAI SDK</h3>
           <pre><span class="comment">// npm install openai</span>
@@ -729,7 +729,7 @@ console.log(msg.content[0].text);</pre>
       </div>
 
       <!-- ── Go ── -->
-      <div id="tab-go" class="tab-panel">
+      <div class="tab-panel" id="tab-go">
         <div class="usage-block">
           <h3>Eino（字节跳动）</h3>
           <pre><span class="comment">// go get github.com/cloudwego/eino-ext/components/model/openai</span>
@@ -773,7 +773,7 @@ fmt.Println(resp.Choices[0].Message.Content)</pre>
       </div>
 
       <!-- ── Dify ── -->
-      <div id="tab-dify" class="tab-panel">
+      <div class="tab-panel" id="tab-dify">
         <div class="cfg-block">
           <div class="cfg-title">设置 → 模型供应商 → 添加模型（OpenAI-API-compatible）</div>
           <table>
@@ -793,7 +793,7 @@ fmt.Println(resp.Choices[0].Message.Content)</pre>
       </div>
 
       <!-- ── LangChain ── -->
-      <div id="tab-langchain" class="tab-panel">
+      <div class="tab-panel" id="tab-langchain">
         <div class="usage-block">
           <h3>Python — OpenAI</h3>
           <pre><span class="comment"># pip install langchain-openai</span>
@@ -841,7 +841,7 @@ console.log(res.content);</pre>
       </div>
 
       <!-- ── 扣子 ── -->
-      <div id="tab-coze" class="tab-panel">
+      <div class="tab-panel" id="tab-coze">
         <div class="cfg-block">
           <div class="cfg-title">工作空间 → 设置 → 模型 → 添加自定义模型（OpenAI 兼容协议）</div>
           <table>
@@ -866,7 +866,7 @@ console.log(res.content);</pre>
 
   </div>
 
-  <footer>LLM 代理 &mdash; 基于 Go 构建 &nbsp;|&nbsp; <a href="https://github.com/dysodeng/llm-proxy" target="_blank" rel="noopener" style="color:var(--footer-fg);text-decoration:underline;">GitHub</a></footer>
+  <footer>LLM 代理 &mdash; 基于 Go 构建 &nbsp;|&nbsp; <a href="https://github.com/dysodeng/llm-proxy" rel="noopener" style="color:var(--footer-fg);text-decoration:underline;" target="_blank">GitHub</a></footer>
 
   <script>
     /* ── Tab 切换 ────────────────────────────────────────────────── */
