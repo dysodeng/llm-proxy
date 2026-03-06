@@ -926,9 +926,20 @@ console.log(res.content);</pre>
         if (b < 1073741824)       return (b / 1048576).toFixed(2) + ' MB';
         return (b / 1073741824).toFixed(2) + ' GB';
       }
+      function fmtUptime(s) {
+        if (!s) return '—';
+        var m = s.match(/^(\d+)h/);
+        if (!m) return s;
+        var hours = parseInt(m[1], 10);
+        if (hours < 24) return s;
+        var days = Math.floor(hours / 24);
+        var rem  = hours % 24;
+        var rest = s.replace(/^\d+h/, '');
+        return days + 'd ' + (rem > 0 ? rem + 'h' : '') + rest;
+      }
 
-      // 运行状态
-      setText('stat-uptime',     data.uptime);
+      // 运行状态（超过 24h 换算为天）
+      setText('stat-uptime',     fmtUptime(data.uptime));
       setText('stat-start-time', data.start_time);
       setText('stat-version',    data.version);
 

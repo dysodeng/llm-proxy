@@ -28,3 +28,5 @@ go.work.sum
 # ide
 .idea
 
+.DS_Store
+
