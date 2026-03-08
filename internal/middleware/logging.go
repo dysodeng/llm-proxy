@@ -9,12 +9,17 @@ import (
 	"go.uber.org/zap"
 )
 
+// maxErrorBodyCapture is the maximum number of bytes to capture from an error
+// response body for logging purposes.
+const maxErrorBodyCapture = 4096
+
 // responseWriter wraps http.ResponseWriter to capture the status code and
 // the number of bytes written in the response body.
 type responseWriter struct {
 	http.ResponseWriter
-	status int
-	bytes  int
+	status    int
+	bytes     int
+	errorBody []byte // captured response body when status >= 400
 }
 
 // newResponseWriter returns a responseWriter that defaults to status 200.
@@ -29,9 +34,17 @@ func (rw *responseWriter) WriteHeader(code int) {
 }
 
 // Write captures the number of bytes written and delegates to the underlying writer.
+// For error responses (status >= 400), it also captures the response body up to maxErrorBodyCapture.
 func (rw *responseWriter) Write(b []byte) (int, error) {
 	n, err := rw.ResponseWriter.Write(b)
 	rw.bytes += n
+	if rw.status >= 400 && len(rw.errorBody) < maxErrorBodyCapture {
+		remaining := maxErrorBodyCapture - len(rw.errorBody)
+		if remaining > n {
+			remaining = n
+		}
+		rw.errorBody = append(rw.errorBody, b[:remaining]...)
+	}
 	return n, err
 }
 
@@ -110,7 +123,7 @@ func Logging(logger *zap.Logger) func(http.Handler) http.Handler {
 			latencyMs := time.Since(start).Milliseconds()
 			provider := extractProvider(r.URL.Path)
 
-			logger.Info("request",
+			fields := []zap.Field{
 				zap.String("provider", provider),
 				zap.String("path", r.URL.Path),
 				zap.String("client_ip", clientIP(r)),
@@ -119,7 +132,22 @@ func Logging(logger *zap.Logger) func(http.Handler) http.Handler {
 				zap.Int64("latency_ms", latencyMs),
 				zap.Int64("req_bytes", reqBytes),
 				zap.Int("resp_bytes", rw.bytes),
-			)
+			}
+
+			switch {
+			case rw.status >= 500:
+				if len(rw.errorBody) > 0 {
+					fields = append(fields, zap.String("upstream_error", string(rw.errorBody)))
+				}
+				logger.Error("upstream_server_error", fields...)
+			case rw.status >= 400:
+				if len(rw.errorBody) > 0 {
+					fields = append(fields, zap.String("upstream_error", string(rw.errorBody)))
+				}
+				logger.Warn("upstream_client_error", fields...)
+			default:
+				logger.Info("request", fields...)
+			}
 		})
 	}
 }

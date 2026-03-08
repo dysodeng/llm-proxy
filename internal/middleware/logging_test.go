@@ -5,7 +5,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest"
+	"go.uber.org/zap/zaptest/observer"
 )
 
 // TestLoggingMiddlewareStatus verifies that the middleware logs the correct status code.
@@ -129,6 +132,94 @@ func TestResponseWriterCapturesStatusAndBytes(t *testing.T) {
 	}
 	if rw.bytes != len(body) {
 		t.Errorf("rw.bytes = %d, want %d", rw.bytes, len(body))
+	}
+}
+
+// TestResponseWriterCapturesErrorBody verifies that the error body is captured for 4xx/5xx.
+func TestResponseWriterCapturesErrorBody(t *testing.T) {
+	rec := httptest.NewRecorder()
+	rw := newResponseWriter(rec)
+
+	rw.WriteHeader(http.StatusBadRequest)
+	errBody := []byte(`{"error":"invalid request"}`)
+	rw.Write(errBody)
+
+	if string(rw.errorBody) != string(errBody) {
+		t.Errorf("errorBody = %q, want %q", rw.errorBody, errBody)
+	}
+}
+
+// TestResponseWriterNoErrorBodyForSuccess verifies no error body is captured for 2xx.
+func TestResponseWriterNoErrorBodyForSuccess(t *testing.T) {
+	rec := httptest.NewRecorder()
+	rw := newResponseWriter(rec)
+
+	rw.WriteHeader(http.StatusOK)
+	rw.Write([]byte("ok"))
+
+	if len(rw.errorBody) != 0 {
+		t.Errorf("errorBody should be empty for 200, got %q", rw.errorBody)
+	}
+}
+
+// TestLoggingMiddlewareErrorLevels verifies log levels for different status codes.
+func TestLoggingMiddlewareErrorLevels(t *testing.T) {
+	tests := []struct {
+		name          string
+		status        int
+		expectedLevel zapcore.Level
+		expectedMsg   string
+	}{
+		{"2xx logs Info", http.StatusOK, zapcore.InfoLevel, "request"},
+		{"4xx logs Warn", http.StatusBadRequest, zapcore.WarnLevel, "upstream_client_error"},
+		{"401 logs Warn", http.StatusUnauthorized, zapcore.WarnLevel, "upstream_client_error"},
+		{"429 logs Warn", http.StatusTooManyRequests, zapcore.WarnLevel, "upstream_client_error"},
+		{"5xx logs Error", http.StatusInternalServerError, zapcore.ErrorLevel, "upstream_server_error"},
+		{"502 logs Error", http.StatusBadGateway, zapcore.ErrorLevel, "upstream_server_error"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			core, logs := observer.New(zapcore.DebugLevel)
+			logger := zap.New(core)
+
+			handler := Logging(logger)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tc.status)
+				if tc.status >= 400 {
+					w.Write([]byte(`{"error":"test"}`))
+				}
+			}))
+
+			req := httptest.NewRequest(http.MethodGet, "/openai/v1/chat", nil)
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			if logs.Len() != 1 {
+				t.Fatalf("expected 1 log entry, got %d", logs.Len())
+			}
+
+			entry := logs.All()[0]
+			if entry.Level != tc.expectedLevel {
+				t.Errorf("expected log level %v, got %v", tc.expectedLevel, entry.Level)
+			}
+			if entry.Message != tc.expectedMsg {
+				t.Errorf("expected message %q, got %q", tc.expectedMsg, entry.Message)
+			}
+
+			// For error responses, verify upstream_error field is present
+			if tc.status >= 400 {
+				found := false
+				for _, f := range entry.ContextMap() {
+					if f == `{"error":"test"}` {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("expected upstream_error field in log entry for status %d", tc.status)
+				}
+			}
+		})
 	}
 }
 
